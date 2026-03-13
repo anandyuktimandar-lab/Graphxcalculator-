@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GraphX Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.7.0/math.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#10b981',
+                        accent: '#8b5cf6',
+                        dark: '#1e293b',
+                        light: '#f8fafc',
+                        darkBackground: '#0f172a',
+                        darkCard: '#1e293b',
+                        darkText: '#f1f5f9'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .equation-item {
+            transition: all 0.3s ease;
+        }
+        .graph-container {
+            background-image: 
+                linear-gradient(rgba(0, 0, 0, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 0, 0, 0.1) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+        .grid-line {
+            stroke: rgba(0, 0, 0, 0.1);
+            stroke-width: 1;
+        }
+        .axis-line {
+            stroke: #333;
+            stroke-width: 2;
+        }
+        .hover-coord {
+            background-color: rgba(255, 255, 255, 0.8);
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            backdrop-filter: blur(4px);
+        }
+        .dark .hover-coord {
+            background-color: rgba(30, 41, 59, 0.8);
+            color: white;
+        }
+        .equation-input {
+            transition: all 0.2s ease;
+        }
+        .equation-input:focus {
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+        }
+        .sidebar {
+            transition: all 0.3s ease;
+        }
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: auto;
+                max-height: 300px;
+            }
+            .main-content {
+                flex-direction: column;
+            }
+            .graph-container {
+                min-height: 400px;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen text-gray-900 dark:bg-darkBackground dark:text-darkText">
+    <div class="flex flex-col h-screen">
+        <!-- Header -->
+        <header class="bg-white shadow-md p-4 dark:bg-darkCard">
+            <div class="container mx-auto flex justify-between items-center">
+                <h1 class="text-xl font-bold text-primary">GraphX Calculator</h1>
+                <div class="flex space-x-2">
+                    <button id="settingsBtn" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                    <button id="darkModeToggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="flex flex-1 overflow-hidden main-content">
+            <!-- Equation Panel -->
+            <div class="sidebar bg-white p-4 shadow-lg w-80 flex flex-col dark:bg-darkCard">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold">Equations</h2>
+                    <button id="resetBtn" class="text-sm bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 transition">
+                        Reset
+                    </button>
+                </div>
+                <div id="equationsContainer" class="flex-1 overflow-y-auto space-y-2 mb-4">
+                    <!-- Equations will be added here dynamically -->
+                </div>
+                
+                <div class="mt-auto">
+                    <div class="input-group mb-2">
+                        <input type="text" id="equationInput" placeholder="Enter equation (e.g., y = x^2)" class="w-full p-2 border border-gray-300 rounded equation-input dark:bg-darkCard dark:border-gray-600 dark:text-white">
+                    </div>
+                    <div class="flex space-x-2">
+                        <button id="addEquationBtn" class="flex-1 bg-primary text-white py-2 rounded hover:bg-blue-600 transition">
+                            Add Equation
+                        </button>
+                        <button id="exportBtn" class="px-3 py-2 bg-secondary text-white rounded hover:bg-green-600 transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M3 17a1 1 0 011-1v-2.282a1 1 0 01.293-.707l6.707-6.707a1 1 0 000-1.414L10.414 4.293A1 1 0 0111.172 4H17a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1zm1-10a1 1 0 001 1h6.172l-2.843 2.843a1 1 0 000 1.414l3.586 3.586a1 1 0 001.414-1.414l-3.586-3.586a1 1 0 00-1.414 0L10.172 12.172V10a1 1 0 00-1-1H4z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Graph Area -->
+            <div class="flex-1 relative bg-light dark:bg-darkBackground">
+                <canvas id="graphCanvas" class="w-full h-full graph-container"></canvas>
+                <div id="hoverCoord" class="hover-coord absolute hidden pointer-events-none"></div>
+                <div id="graphTools" class="absolute top-4 right-4 flex space-x-2">
+                    <button id="zoomInBtn" class="p-2 bg-white dark:bg-darkCard shadow rounded hover:bg-gray-100 dark:hover:bg-gray-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                    <button id="zoomOutBtn" class="p-2 bg-white dark:bg-darkCard shadow rounded hover:bg-gray-100 dark:hover:bg-gray-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                    <button id="panBtn" class="p-2 bg-white dark:bg-darkCard shadow rounded hover:bg-gray-100 dark:hover:bg-gray-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Modal -->
+        <div id="settingsModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+            <div class="bg-white dark:bg-darkCard rounded-lg p-6 w-96 max-w-full mx-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold">Settings</h3>
+                    <button id="closeSettings" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <label class="text-sm font-medium">Dark Mode</label>
+                        <button id="darkModeSetting" class="relative inline-flex h-6 w-11 items-center rounded-full bg-gray-300 dark:bg-gray-600">
+                            <span class="inline-block h-4 w-4 transform rounded-full bg-white transition translate-x-1"></span>
+                        </button>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <label class="text-sm font-medium">Grid Lines</label>
+                        <button id="gridLinesSetting" class="relative inline-flex h-6 w-11 items-center rounded-full bg-blue-500">
+                            <span class="inline-block h-4 w-4 transform rounded-full bg-white transition translate-x-6"></span>
+                        </button>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <label class="text-sm font-medium">Axis Labels</label>
+                        <button id="axisLabelsSetting" class="relative inline-flex h-6 w-11 items-center rounded-full bg-blue-500">
+                            <span class="inline-block h-4 w-4 transform rounded-full bg-white transition translate-x-6"></span>
+                        </button>
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end">
+                    <button id="saveSettings" class="px-4 py-2 bg-primary text-white rounded hover:bg-blue-600 transition">
+                        Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let equations = [];
+        let graphData = {};
+        let isDarkMode = false;
+        let showGrid = true;
+        let showAxisLabels = true;
+        let zoomLevel = 1;
+        let panOffset = { x: 0, y: 0 };
+        const canvas = document.getElementById('graphCanvas');
+        const ctx = canvas.getContext('2d');
+        const equationsContainer = document.getElementById('equationsContainer');
+        const equationInput = document.getElementById('equationInput');
+        const addEquationBtn = document.getElementById('addEquationBtn');
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const exportBtn = document.getElementById('exportBtn');
+        const settingsModal = document.getElementById('settingsModal');
+        const closeSettings = document.getElementById('closeSettings');
+        const saveSettings = document.getElementById('saveSettings');
+        const darkModeSetting = document.getElementById('darkModeSetting');
+        const gridLinesSetting = document.getElementById('gridLinesSetting');
+        const axisLabelsSetting = document.getElementById('axisLabelsSetting');
+        const zoomInBtn = document.getElementById('zoomInBtn');
+        const zoomOutBtn = document.getElementById('zoomOutBtn');
+        const panBtn = document.getElementById('panBtn');
+        const hoverCoord = document.getElementById('hoverCoord');
+
+        // Initialize
+        function init() {
+            resizeCanvas();
+            setupEventListeners();
+            drawGraph();
+            addDefaultEquations();
+        }
+
+        // Set up event listeners
+        function setupEventListeners() {
+            window.addEventListener('resize', resizeCanvas);
+            canvas.addEventListener('mousemove', handleMouseMove);
+            canvas.addEventListener('mouseleave', hideHoverCoord);
+            canvas.addEventListener('wheel', handleWheel);
+            addEquationBtn.addEventListener('click', addEquation);
+            equationInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') addEquation();
+            });
+            darkModeToggle.addEventListener('click', toggleDarkMode);
+            settingsBtn.addEventListener('click', openSettings);
+            closeSettings.addEventListener('click', closeSettingsModal);
+            saveSettings.addEventListener('click', saveSettingsHandler);
+            resetBtn.addEventListener('click', resetGraph);
+            exportBtn.addEventListener('click', exportGraph);
+            
+            // Settings toggles
+            darkModeSetting.addEventListener('click', () => {
+                darkModeSetting.classList.toggle('bg-blue-500');
+                darkModeSetting.classList.toggle('bg-gray-300');
+                isDarkMode = !isDarkMode;
+                toggleDarkMode();
+            });
+            
+            gridLinesSetting.addEventListener('click', () => {
+                gridLinesSetting.classList.toggle('bg-blue-500');
+                gridLinesSetting.classList.toggle('bg-gray-300');
+                showGrid = !showGrid;
+                drawGraph();
+            });
+            
+            axisLabelsSetting.addEventListener('click', () => {
+                axisLabelsSetting.classList.toggle('bg-blue-500');
+                axisLabelsSetting.classList.toggle('bg-gray-300');
+                showAxisLabels = !showAxisLabels;
+                drawGraph();
+            });
+
+            // Zoom buttons
+            zoomInBtn.addEventListener('click', () => {
+                zoomLevel *= 1.2;
+                drawGraph();
+            });
+            
+            zoomOutBtn.addEventListener('click', () => {
+                zoomLevel /= 1.2;
+                drawGraph();
+            });
+            
+            panBtn.addEventListener('click', () => {
+                // Toggle panning mode
+            });
+        }
+
+        // Resize canvas to fit container
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            drawGraph();
+        }
+
+        // Add default equations for demo
+        function addDefaultEquations() {
+            addEquationFromInput('y = x^2');
+            addEquationFromInput('y = sin(x)');
+            addEquationFromInput('y = 2*x + 3');
+        }
+
+        // Add equation from input field
+        function addEquation() {
+            const equationText = equationInput.value.trim();
+            if (equationText) {
+                addEquationFromInput(equationText);
+                equationInput.value = '';
+            }
+        }
+
+        // Add equation from text
+        function addEquationFromInput(equationText) {
+            try {
+                const equation = {
+                    id: Date.now(),
+                    expression: equationText,
+                    color: getRandomColor(),
+                    visible: true
+                };
+                equations.push(equation);
+                renderEquations();
+                drawGraph();
+            } catch (error) {
+                alert('Invalid equation format. Please check syntax.');
+            }
+        }
+
+        // Render equation list
+        function renderEquations() {
+            equationsContainer.innerHTML = '';
+            equations.forEach(eq => {
+                const equationItem = document.createElement('div');
+                equationItem.className = 'equation-item flex justify-between items-center bg-gray-50 p-2 rounded dark:bg-gray-700';
+                equationItem.innerHTML = `
+                    <div class="flex items-center">
+                        <div class="w-4 h-4 rounded-full mr-2" style="background-color: ${eq.color}"></div>
+                        <span class="font-mono text-sm">${eq.expression}</span>
+                    </div>
+                    <div class="flex space-x-1">
+                        <button onclick="toggleEquation('${eq.id}')" class="text-xs px-2 py-1 bg-gray-200 rounded hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500">
+                            ${eq.visible ? 'Hide' : 'Show'}
+                        </button>
+                        <button onclick="deleteEquation('${eq.id}')" class="text-xs px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600">
+                            Delete
+                        </button>
+                    </div>
+                `;
+                equationsContainer.appendChild(equationItem);
+            });
+        }
+
+        // Delete equation
+        function deleteEquation(id) {
+            equations = equations.filter(eq => eq.id !== id);
+            renderEquations();
+            drawGraph();
+        }
+
+        // Toggle equation visibility
+        function toggleEquation(id) {
+            const equation = equations.find(eq => eq.id === id);
+            if (equation) {
+                equation.visible = !equation.visible;
+                drawGraph();
+            }
+        }
+
+        // Generate random color
+        function getRandomColor() {
+            const colors = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444', '#ec4899'];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        // Handle mouse move for hover coordinates
+        function handleMouseMove(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            const coord = screenToGraphCoords(x, y);
+            showHoverCoord(coord.x.toFixed(2), coord.y.toFixed(2), x, y);
+        }
+
+        // Show hover coordinates
+        function showHoverCoord(x, y, screenX, screenY) {
+            hoverCoord.textContent = `(${x}, ${y})`;
+            hoverCoord.style.left = `${screenX + 10}px`;
+            hoverCoord.style.top = `${screenY - 20}px`;
+            hoverCoord.classList.remove('hidden');
+        }
+
+        // Hide hover coordinates
+        function hideHoverCoord() {
+            hoverCoord.classList.add('hidden');
+        }
+
+        // Handle mouse wheel for zooming
+        function handleWheel(e) {
+            e.preventDefault();
+            const zoomIntensity = 0.1;
+            if (e.deltaY < 0) {
+                zoomLevel *= (1 + zoomIntensity);
+            } else {
+                zoomLevel *= (1 - zoomIntensity);
+            }
+            zoomLevel = Math.max(0.1, Math.min(zoomLevel, 10));
+            drawGraph();
+        }
+
+        // Convert screen coordinates to graph coordinates
+        function screenToGraphCoords(screenX, screenY) {
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            // Center of canvas
+            const centerX = width / 2;
+            const centerY = height / 2;
+            
+            // Scale factor (graph units per pixel)
+            const scale = 20 * zoomLevel;
+            
+            // Convert to graph coordinates
+            const x = (screenX - centerX - panOffset.x) / scale;
+            const y = -(screenY - centerY - panOffset.y) / scale;
+            
+            return { x, y };
+        }
+
+        // Draw the graph
+        function drawGraph() {
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, width, height);
+            
+            // Draw background
+            ctx.fillStyle = isDarkMode ? '#0f172a' : '#f8fafc';
+            ctx.fillRect(0, 0, width, height);
+            
+            // Draw grid
+            if (showGrid) {
+                drawGrid(width, height);
+            }
+            
+            // Draw axes
+            drawAxes(width, height);
+            
+            // Plot equations
+            equations.forEach(eq => {
+                if (eq.visible) {
+                    plotEquation(eq.expression, eq.color);
+                }
+            });
+        }
+
+        // Draw grid lines
+        function drawGrid(width, height) {
+            const scale = 20 * zoomLevel;
+            
+            // Vertical grid lines
+            for (let x = 0; x <= width; x += scale) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+                ctx.strokeStyle = isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.1)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+            
+            // Horizontal grid lines
+            for (let y = 0; y <= height; y += scale) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+                ctx.strokeStyle = isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.1)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+        }
+
+        // Draw axes
+        function drawAxes(width, height) {
+            const centerX = width / 2 + panOffset.x;
+            const centerY = height / 2 + panOffset.y;
+            const scale = 20 * zoomLevel;
+            
+            // X-axis
+            ctx.beginPath();
+            ctx.moveTo(0, centerY);
+            ctx.lineTo(width, centerY);
+            ctx.strokeStyle = isDarkMode ? '#94a3b8' : '#333';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Y-axis
+            ctx.beginPath();
+            ctx.moveTo(centerX, 0);
+            ctx.lineTo(centerX, height);
+            ctx.strokeStyle = isDarkMode ? '#94a3b8' : '#333';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Draw axis labels
+            if (showAxisLabels) {
+                ctx.fillStyle = isDarkMode ? '#cbd5e1' : '#333';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                
+                // X-axis labels
+                for (let i = -10; i <= 10; i++) {
+                    if (i === 0) continue;
+                    const x = centerX + i * scale;
+                    if (x >= 0 && x <= width) {
+                        ctx.fillText(i.toString(), x, centerY + 15);
+                    }
+                }
+                
+                // Y-axis labels
+                ctx.textAlign = 'right';
+                for (let i = -10; i <= 10; i++) {
+                    if (i === 0) continue;
+                    const y = centerY - i * scale;
+                    if (y >= 0 && y <= height) {
+                        ctx.fillText(i.toString(), centerX - 5, y + 4);
+                    }
+                }
+            }
+        }
+
+        // Plot equation
+        function plotEquation(expression, color) {
+            const width = canvas.width;
+            const height = canvas.height;
+            const centerX = width / 2 + panOffset.x;
+            const centerY = height / 2 + panOffset.y;
+            const scale = 20 * zoomLevel;
+            
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            
+            let firstPoint = true;
+            
+            // Evaluate the function over a range of x values
+            for (let i = -20; i <= 20; i += 0.1) {
+                const x = i;
+                try {
+                    // Parse and evaluate the expression with x substituted
+                    const expr = math.parse(expression.replace(/y\s*=\s*/g, ''));
+                    const scope = { x: x };
+                    const result = expr.evaluate(scope);
+                    
+                    // Convert to screen coordinates
+                    const screenX = centerX + x * scale;
+                    const screenY = centerY - result * scale;
+                    
+                    if (firstPoint) {
+                        ctx.moveTo(screenX, screenY);
+                        firstPoint = false;
+                    } else {
+                        ctx.lineTo(screenX, screenY);
+                    }
+                } catch (error) {
+                    // Skip invalid points
+                }
+            }
+            
+            ctx.stroke();
+        }
+
+        // Toggle dark mode
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark:bg-darkBackground');
+            document.body.classList.toggle('dark:text-darkText');
+            document.body.classList.toggle('bg-gray-100');
+            document.body.classList.toggle('text-gray-900');
+            drawGraph();
+        }
+
+        // Open settings modal
+        function openSettings() {
+            settingsModal.classList.remove('hidden');
+        }
+
+        // Close settings modal
+        function closeSettingsModal() {
+            settingsModal.classList.add('hidden');
+        }
+
+        // Save settings handler
+        function saveSettingsHandler() {
+            closeSettingsModal();
+            drawGraph();
+        }
+
+        // Reset graph
+        function resetGraph() {
+            equations = [];
+            renderEquations();
+            zoomLevel = 1;
+            panOffset = { x: 0, y: 0 };
+            drawGraph();
+        }
+
+        // Export graph
+        function exportGraph() {
+            const link = document.createElement('a');
+            link.download = 'math-graph.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+
+        // Initialize the application
+        window.onload = init;
+    </script>
+</body>
+</html>
